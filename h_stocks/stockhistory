@@ -1,0 +1,73 @@
+import xlwt
+from bs4 import BeautifulSoup
+import requests
+import sys
+import io
+import re
+import csv
+import traceback
+import pandas as pd
+from pandas import Series,DataFrame
+import sqlite3
+
+#发送网络请求股票数据
+def getHTMLtext(url, code):
+    try:
+        headers = {"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/47.0.2526.80 Safari/537.36)"}  # 伪装浏览器请求报头
+        r =requests.get(url,headers=headers)
+        r.raise_for_status()
+        r.encoding = code
+        return r.text
+    except:
+        return ""
+
+#获取股票数据并解析
+def getStockList(list,stockURL):
+    #调用网络请求获取数据
+    html = getHTMLtext(stockURL,"gbk")
+    print("getstockList start")
+
+    #解析成xml数据
+    soup = BeautifulSoup(html,"lxml")
+    #从soup里面选出想要的数据
+    a = soup.select("li > a")
+
+    #打开数据库并创建表
+    # 在这里，您也可以把数据库名称复制为特定的名称 :memory:，这样就会在 RAM 中创建一个数据库。现在，让我们来运行上面的程序，
+    conn = sqlite3.connect('stock.db')
+    # 创建所有股票的表
+    conn.execute('''create table IF NOT EXISTS stocklist (code text not null,name text not null);''')
+
+    for i in a:
+        try:
+            if "(" not in str(i.text):
+                continue
+            stockname = str(i.text)[:-1]
+            one_stock =  stockname.split("(",1);
+            #插入数据到数据表中
+            # conn.execute("INSERT INTO stocklist (code,name) VALUES (?,?)",one_stock[0],one_stock[1]);
+            list.append(one_stock)
+        except:
+            continue
+    conn.close()
+
+def writecsvdata(lists):
+    #创建csv文件并写头
+    with open("stocklist.csv", "wb",encoding="utf-8") as csvfile
+    csvfile = file("stocklist.csv", "wb")
+    writer = csv.writer(csvfile)
+    writer.writerow(["code", "name"])
+    #保存数据
+    writer.writerows(lists)
+    csvfile.close()
+
+def main():
+    stock_list_url='http://quote.eastmoney.com/stocklist.html#sz'
+    slist=[]
+    getStockList(slist,stock_list_url)
+    writecsvdata(slist)
+    for text in slist:
+        print (text)
+
+
+main()
